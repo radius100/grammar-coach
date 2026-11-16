@@ -5,7 +5,8 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod';
 import { z } from 'zod';
 import type { GrammarCheckResponse, SupportedLanguage } from '../shared/types';
 
-const MODEL = 'claude-opus-5-5';
+// Cheapest current model ($0.10 / $0.50 per 1M tokens). Upgrade to claude-sonnet-5-5 if quality is lacking.
+const MODEL = 'claude-haiku-5-5';
 
 const GrammarCheckSchema = z.object({
   language: z.enum(['ru', 'en']),
