@@ -21,6 +21,18 @@ export interface GrammarIssue {
   hint: string;
 }
 
+/**
+ * Issue, привязанный к текущему тексту поля для подсветки.
+ * Смещения вычислены локально через `text.indexOf(issue.quote)`, никогда не берутся от LLM.
+ */
+export interface AnchoredIssue {
+  issue: GrammarIssue;
+  /** Индекс начала quote в тексте поля (UTF-16 code units) */
+  start: number;
+  /** Индекс конца (не включительно): start + quote.length */
+  end: number;
+}
+
 export interface GrammarCheckResponse {
   language: SupportedLanguage;
   issues: GrammarIssue[];
