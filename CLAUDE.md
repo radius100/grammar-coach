@@ -1,16 +1,65 @@
 # Grammar Coach (Anti-Grammarly Extension)
 
-## Core Product Invariant (CRITICAL)
-- **NO AUTO-REWRITE:** The extension must NEVER provide a one-click "Fix all" button or replace user text automatically.
-- Users must manually retype corrections to build muscle memory.
-- Explanations must be concise (1-2 sentences) with a Socratic hint, not the ready answer.
+Chrome extension (Manifest V3) that trains RU/EN writing. It points out mistakes
+and never fixes them for the user.
 
-## Tech Stack & Commands
-- Chrome Extension Manifest V3 + TypeScript + Vite (`@crxjs/vite-plugin`).
-- Build: `npm run build`
-- Dev watch: `npm run dev`
+## Product Invariants (CRITICAL, never violate)
 
-## Architecture Rules
-- `src/shared/types.ts`: Single source of truth for LLM JSON schemas and storage models.
-- `src/content/`: Injected page scripts. Must use Shadow DOM for any UI overlays to isolate CSS from host pages.
-- `src/background/`: Service worker for LLM API calls, rate limiting (debounce), and `chrome.alarms` spaced repetition checks.
+- **NO AUTO-REWRITE.** The extension NEVER modifies user text: no `value =`,
+  no `execCommand('insertText')`, no `textContent =` on host editable fields,
+  no "Fix all" / "Apply" / "Accept suggestion" buttons.
+- The user retypes corrections manually to build muscle memory.
+- Allowed feedback per issue, nothing more:
+  1. highlight of the exact `quote` from the user's text;
+  2. rule explanation: 1-2 sentences;
+  3. Socratic `hint` that leads to the answer and does NOT contain the corrected text.
+- LLM prompts must ask for hints without the answer. Reject or drop issues whose
+  hint contains the corrected form.
+
+## UI Isolation
+
+- Every overlay injected into a web page lives inside a Shadow DOM
+  (`attachShadow({ mode: 'closed' })`) on a single host element.
+- No global CSS, no styles on host page elements, no class names added to host nodes.
+- Highlights are drawn as overlays positioned over the field, not by editing its DOM.
+
+## Contract First
+
+- `src/shared/types.ts` is the single source of truth for: the LLM response schema
+  (`GrammarCheckResponse` / `GrammarIssue`), content <-> background messages,
+  and storage models (`SavedMistakeRecord`, `StorageSchema`).
+- Change the contract there first, then the code. Do not redeclare these shapes elsewhere.
+- Issues are anchored by exact `quote` (found via `indexOf` in the current text),
+  never by LLM-provided character offsets.
+- `types.ts` holds types only; runtime helpers go in other `src/shared/*` files.
+
+## Commands
+
+- `npm run build` - type check (`tsc -b`) + production build into `dist/`.
+  Run it after every change; it is the verification step.
+- `npm run dev` - crxjs dev build with HMR (load `dist/` unpacked in Chrome).
+- `npm run lint` - ESLint.
+
+## Architecture
+
+- `manifest.json` (project root) - consumed by `@crxjs/vite-plugin` in `vite.config.ts`.
+  Do NOT put it in `public/` (it would be copied verbatim and skip crxjs processing).
+- `src/content/` - content script: watches `<textarea>`, `<input type="text">`,
+  contenteditable; debounces input (1500 ms per element); sends messages to background.
+- `src/background/` - service worker: LLM API calls, rate limiting,
+  `chrome.alarms` for SM-2 spaced repetition. API keys live only here.
+- `src/shared/` - contracts (`types.ts`) and pure helpers (`language.ts`).
+- Popup: `index.html` -> `src/main.tsx` (React).
+
+## Gotchas
+
+- Manifest entry files MUST have unique basenames (`service-worker.ts`,
+  `content-script.ts`, never two `index.ts`): crxjs beta + Vite 8 resolves the
+  service-worker loader by chunk name and may import the content script instead
+  ("document is not defined" in the worker).
+
+- Never read password/email fields; only `type="text"` inputs.
+- After reloading the extension, old content scripts lose the runtime
+  ("Extension context invalidated"): check `chrome.runtime?.id` and detach listeners.
+- The MV3 service worker is killed when idle: keep no state in module variables,
+  persist to `chrome.storage`.
