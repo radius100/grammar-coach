@@ -25,6 +25,9 @@ and never fixes them for the user.
 
 ## Contract First
 
+- Before changing architecture or contracts, read `docs/adr/` (ADR-001 UI isolation,
+  ADR-002 contract & quote anchoring, ADR-003 MV3 messaging & storage).
+
 - `src/shared/types.ts` is the single source of truth for: the LLM response schema
   (`GrammarCheckResponse` / `GrammarIssue`), content <-> background messages,
   and storage models (`SavedMistakeRecord`, `StorageSchema`).
