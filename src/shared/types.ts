@@ -125,6 +125,11 @@ export interface StorageSchema {
   mistakes: Record<string, SavedMistakeRecord>;
   /** Ключ Anthropic API; читается только в background. */
   apiKey?: string;
+  /**
+   * Нормализованные hostname (нижний регистр, без `www.`), на которых проверка отключена.
+   * Поддомены записи тоже отключены. Пишет только popup (ADR-005).
+   */
+  disabledSites?: string[];
 }
 
 /** Схема chrome.storage.session (очищается при перезапуске браузера). */

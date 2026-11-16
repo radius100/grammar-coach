@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { StorageSchema } from './shared/types'
 import ReviewPanel from './ReviewPanel'
+import SiteToggle from './SiteToggle'
 import './App.css'
 
 function App() {
@@ -26,6 +27,7 @@ function App() {
   return (
     <main style={{ padding: 16, minWidth: 300 }}>
       <h1 style={{ fontSize: 18, margin: '0 0 12px' }}>Grammar Coach</h1>
+      <SiteToggle />
       <ReviewPanel />
       <p style={{ margin: '0 0 8px' }}>
         Anthropic API-ключ: {hasKey ? 'задан' : 'не задан'}

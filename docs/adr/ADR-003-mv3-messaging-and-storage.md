@@ -11,7 +11,7 @@
   - Background (`src/background/service-worker.ts`) обрабатывает сообщения в exhaustive `switch` с проверкой `never`.
     На асинхронный ответ отвечает `return true` + `sendResponse` после `await`.
   - API-ключ и вызовы LLM (`src/background/llm.ts`) живут только в background.
-  - Постоянное состояние хранится в `chrome.storage.local` (`apiKey`, `mistakes`; `mistakes` пишет только background, см. ADR-004), сессионное — в `chrome.storage.session`
+  - Постоянное состояние хранится в `chrome.storage.local` (`apiKey`, `mistakes`, `disabledSites`; `mistakes` пишет только background, см. ADR-004; `disabledSites` пишет только popup, см. ADR-005), сессионное — в `chrome.storage.session`
     (`lastRequestAt` для rate limit). Перечитывается при каждом событии.
   - Дебаунс 1500 мс выполняется в content script (`WeakMap` таймеров). `isExtensionAlive()` и `detach()` снимают
     слушатели после «Extension context invalidated».

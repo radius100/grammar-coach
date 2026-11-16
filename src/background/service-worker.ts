@@ -2,6 +2,7 @@
 // No state in module variables: the MV3 worker is killed when idle.
 
 import { filterIssues } from '../shared/issue-filter';
+import { isSiteDisabled } from '../shared/site-filter';
 import type {
   BackgroundMessage,
   ContentToBackgroundMessage,
@@ -28,7 +29,8 @@ async function handleCheckText(
   payload: Extract<ContentToBackgroundMessage, { type: 'CHECK_TEXT' }>['payload'],
   tabId: number | undefined,
 ): Promise<ResponseFor<Extract<ContentToBackgroundMessage, { type: 'CHECK_TEXT' }>>> {
-  const stored = (await chrome.storage.local.get('apiKey')) as Partial<StorageSchema>;
+  const stored = (await chrome.storage.local.get(['apiKey', 'disabledSites'])) as Partial<StorageSchema>;
+  if (isSiteDisabled(payload.url, stored.disabledSites)) return { ok: false, error: 'Проверка отключена на этом сайте' };
   // Fallback for local testing: key from .env.local is baked into dist/ (never share that build).
   const apiKey = stored.apiKey ?? (import.meta.env.VITE_ANTHROPIC_API_KEY as string | undefined);
   if (!apiKey) return { ok: false, error: 'API-ключ не задан: откройте popup расширения' };

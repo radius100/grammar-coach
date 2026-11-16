@@ -3,7 +3,7 @@
   "name": "Grammar Coach (Anti-Grammarly)",
   "version": "0.1.0",
   "description": "Тренажер грамотного письма на RU и EN без автозамены",
-  "permissions": ["storage", "alarms"],
+  "permissions": ["storage", "alarms", "activeTab"],
   "action": {
     "default_popup": "index.html"
   },
