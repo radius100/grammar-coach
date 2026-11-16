@@ -55,6 +55,25 @@ export interface CheckTextMessage {
 /** Все сообщения от content script к background (дискриминатор: `type`). */
 export type ContentToBackgroundMessage = CheckTextMessage;
 
+// ---------------------------------------------------------------------------
+// Messages: Popup -> Background Service Worker
+// ---------------------------------------------------------------------------
+
+export interface ReviewMistakeMessage {
+  type: 'REVIEW_MISTAKE';
+  payload: {
+    /** `SavedMistakeRecord.id` */
+    id: string;
+    quality: Sm2Quality;
+  };
+}
+
+/** Все сообщения от popup к background. */
+export type PopupToBackgroundMessage = ReviewMistakeMessage;
+
+/** Все сообщения, которые обрабатывает background. */
+export type BackgroundMessage = ContentToBackgroundMessage | PopupToBackgroundMessage;
+
 export type MessageResult<T = undefined> =
   | (T extends undefined ? { ok: true } : { ok: true; result: T })
   | { ok: false; error: string };
@@ -62,9 +81,10 @@ export type MessageResult<T = undefined> =
 /** Тип ответа background для каждого типа сообщения. */
 export interface MessageResponseMap {
   CHECK_TEXT: MessageResult<GrammarCheckResponse>;
+  REVIEW_MISTAKE: MessageResult<SavedMistakeRecord>;
 }
 
-export type ResponseFor<M extends ContentToBackgroundMessage> = MessageResponseMap[M['type']];
+export type ResponseFor<M extends BackgroundMessage> = MessageResponseMap[M['type']];
 
 // ---------------------------------------------------------------------------
 // Storage: spaced repetition (SM-2)
@@ -82,6 +102,8 @@ export interface SavedMistakeRecord {
   /** Последняя цитата пользователя с этой ошибкой */
   lastQuote: string;
   explanation: string;
+  /** Последняя (уже отфильтрованная) наводящая подсказка; без исправленной формы */
+  lastHint: string;
   /** Сколько раз ошибка встретилась в тексте */
   errorCount: number;
   /** Число успешных повторений подряд (n в SM-2), сбрасывается при quality < 3 */

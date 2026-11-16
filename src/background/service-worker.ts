@@ -3,12 +3,15 @@
 
 import { filterIssues } from '../shared/issue-filter';
 import type {
+  BackgroundMessage,
   ContentToBackgroundMessage,
   ResponseFor,
+  ReviewMistakeMessage,
   SessionStorageSchema,
   StorageSchema,
 } from '../shared/types';
 import { checkGrammar, LlmError } from './llm';
+import { DUE_ALARM, recordMistakes, refreshBadge, reviewMistake } from './mistake-store';
 
 const MIN_INTERVAL_MS = 3000;
 
@@ -38,6 +41,11 @@ async function handleCheckText(
     const result = await checkGrammar(payload.text, payload.language, apiKey);
     const issues = filterIssues(result.issues, payload.text);
     console.log('[GrammarCoach] CHECK_TEXT', { language: result.language, raw: result.issues.length, kept: issues.length, issues });
+    try {
+      await recordMistakes(issues, payload.text, result.language);
+    } catch (err) {
+      console.warn('[GrammarCoach] saving mistakes failed:', err);
+    }
     return { ok: true, result: { ...result, issues } };
   } catch (err) {
     const error = err instanceof LlmError ? err.message : String(err);
@@ -46,15 +54,41 @@ async function handleCheckText(
   }
 }
 
-chrome.runtime.onMessage.addListener((message: ContentToBackgroundMessage, sender, sendResponse) => {
+async function handleReviewMistake(
+  payload: ReviewMistakeMessage['payload'],
+): Promise<ResponseFor<ReviewMistakeMessage>> {
+  try {
+    const result = await reviewMistake(payload.id, payload.quality);
+    return result ? { ok: true, result } : { ok: false, error: 'Запись не найдена' };
+  } catch (err) {
+    console.warn('[GrammarCoach] review failed:', err);
+    return { ok: false, error: String(err) };
+  }
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  void chrome.alarms.create(DUE_ALARM, { periodInMinutes: 60 });
+  void refreshBadge();
+});
+
+chrome.runtime.onStartup.addListener(() => void refreshBadge());
+
+chrome.alarms.onAlarm.addListener((a) => {
+  if (a.name === DUE_ALARM) void refreshBadge();
+});
+
+chrome.runtime.onMessage.addListener((message: BackgroundMessage, sender, sendResponse) => {
   switch (message.type) {
     case 'CHECK_TEXT':
       void handleCheckText(message.payload, sender.tab?.id).then(sendResponse);
       return true; // async response
+    case 'REVIEW_MISTAKE':
+      void handleReviewMistake(message.payload).then(sendResponse);
+      return true; // async response
     default: {
       // Compile-time exhaustiveness check: a new message type without a case fails here.
-      const unknownType: never = message.type;
-      sendResponse({ ok: false, error: `Unknown message type: ${String(unknownType)}` });
+      const unknownMessage: never = message;
+      sendResponse({ ok: false, error: `Unknown message: ${JSON.stringify(unknownMessage)}` });
       return false;
     }
   }

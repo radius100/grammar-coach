@@ -6,10 +6,12 @@
 - **Решение:**
   - Content (`src/content/content-script.ts`) шлёт в background `chrome.runtime.sendMessage` с дискриминатором `type`,
     тип ответа задаёт `ResponseFor<M>` (`{ ok: true, result } | { ok: false, error }`).
+  - Popup тоже шлёт сообщения в background (`PopupToBackgroundMessage`); все сообщения, которые принимает background,
+    объединены в `BackgroundMessage` (`ContentToBackgroundMessage | PopupToBackgroundMessage`).
   - Background (`src/background/service-worker.ts`) обрабатывает сообщения в exhaustive `switch` с проверкой `never`.
     На асинхронный ответ отвечает `return true` + `sendResponse` после `await`.
   - API-ключ и вызовы LLM (`src/background/llm.ts`) живут только в background.
-  - Постоянное состояние хранится в `chrome.storage.local` (`apiKey`, `mistakes`), сессионное — в `chrome.storage.session`
+  - Постоянное состояние хранится в `chrome.storage.local` (`apiKey`, `mistakes`; `mistakes` пишет только background, см. ADR-004), сессионное — в `chrome.storage.session`
     (`lastRequestAt` для rate limit). Перечитывается при каждом событии.
   - Дебаунс 1500 мс выполняется в content script (`WeakMap` таймеров). `isExtensionAlive()` и `detach()` снимают
     слушатели после «Extension context invalidated».
