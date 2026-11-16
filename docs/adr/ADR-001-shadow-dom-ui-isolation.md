@@ -7,8 +7,11 @@
 - **Решение:**
   - Весь UI на странице живёт в одном host-элементе с `attachShadow({ mode: 'closed' })`, все стили внутри shadow root.
   - Подсветка `quote` рисуется абсолютно позиционированными оверлеями поверх поля, DOM самого поля не трогаем.
-  - Код оверлея размещается в `src/content/`. Сейчас (MVP-1) `src/content/content-script.ts` только читает
-    `value` / `innerText` и шлёт `CHECK_TEXT`, в DOM ничего не пишет.
+  - Код оверлея размещается в `src/content/overlay.ts` (не entry манифеста) с интерфейсом
+    `showHighlights(el, anchored)` / `clearHighlights()`. `src/content/content-script.ts` только читает
+    `value` / `innerText`, шлёт `CHECK_TEXT` и передаёт привязанные issues в оверлей; в поле ничего не пишет.
+  - Геометрия подсветки вычисляется только чтением: зеркальный элемент внутри shadow root для `textarea` / `input`,
+    `Range.getClientRects()` для contenteditable.
   - Для каждой ошибки показываем только подсветку, объяснение в 1–2 предложения и наводящую подсказку (`hint`).
 - **Запрещено:**
   - `el.value = …`, `textContent =` / `innerHTML =` на редактируемых полях хоста, `execCommand('insertText')`.
