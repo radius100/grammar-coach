@@ -49,7 +49,9 @@ async function sendText(el: Element): Promise<void> {
   try {
     const response = await chrome.runtime.sendMessage<CheckTextMessage, ResponseFor<CheckTextMessage>>(message);
     lastSentText.set(el, text);
-    if (response && !response.ok) console.warn('[GrammarCoach] background error:', response.error);
+    if (!response) return;
+    if (response.ok) console.info('[GrammarCoach] issues', response.result.issues);
+    else console.warn('[GrammarCoach] background error:', response.error);
   } catch (err) {
     // Typically "Extension context invalidated" after the extension was reloaded.
     if (!isExtensionAlive()) detach();

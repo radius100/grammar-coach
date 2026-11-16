@@ -43,11 +43,13 @@ export interface CheckTextMessage {
 /** Все сообщения от content script к background (дискриминатор: `type`). */
 export type ContentToBackgroundMessage = CheckTextMessage;
 
-export type MessageResult = { ok: true } | { ok: false; error: string };
+export type MessageResult<T = undefined> =
+  | (T extends undefined ? { ok: true } : { ok: true; result: T })
+  | { ok: false; error: string };
 
 /** Тип ответа background для каждого типа сообщения. */
 export interface MessageResponseMap {
-  CHECK_TEXT: MessageResult;
+  CHECK_TEXT: MessageResult<GrammarCheckResponse>;
 }
 
 export type ResponseFor<M extends ContentToBackgroundMessage> = MessageResponseMap[M['type']];
@@ -87,4 +89,12 @@ export interface SavedMistakeRecord {
 /** Схема chrome.storage.local */
 export interface StorageSchema {
   mistakes: Record<string, SavedMistakeRecord>;
+  /** Ключ Anthropic API; читается только в background. */
+  apiKey?: string;
+}
+
+/** Схема chrome.storage.session (очищается при перезапуске браузера). */
+export interface SessionStorageSchema {
+  /** Timestamp (ms) последнего запроса к LLM по tabId — для rate limit. */
+  lastRequestAt: Record<string, number>;
 }
