@@ -43,6 +43,12 @@ and never fixes them for the user.
 - `npm run dev` - crxjs dev build with HMR (load `dist/` unpacked in Chrome).
 - `npm run lint` - ESLint.
 
+## Workflow
+
+- New features: `/plan-feature <feature description>` -> writes `.claude/current-plan.md` (gitignored).
+- Execute in a fresh session: `/create-planned-feature`, one stage = one commit
+  (ADR -> contracts -> tests -> logic -> UI). Do not implement planned features ad hoc.
+
 ## Architecture
 
 - `manifest.json` (project root) - consumed by `@crxjs/vite-plugin` in `vite.config.ts`.
