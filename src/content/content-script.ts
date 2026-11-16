@@ -1,14 +1,26 @@
 // Content script: watches text input and sends it to the background worker.
 // MVP-0 never touches the page DOM and never modifies user text (see CLAUDE.md).
 
+import { anchorIssues } from '../shared/anchor';
 import { detectLanguage } from '../shared/language';
-import type { CheckTextMessage, ResponseFor } from '../shared/types';
+import type { CheckTextMessage, GrammarCheckResponse, ResponseFor } from '../shared/types';
+import { clearHighlights, showHighlights } from './overlay';
 
 const DEBOUNCE_MS = 1500;
 const MIN_NON_SPACE_CHARS = 3;
 
 const timers = new WeakMap<Element, number>();
 const lastSentText = new WeakMap<Element, string>();
+const lastResult = new WeakMap<Element, GrammarCheckResponse>();
+
+/** Re-anchors the last result on the field's CURRENT text (it may have changed during the request). */
+function renderIssues(el: Element): void {
+  const result = lastResult.get(el);
+  if (!result) return;
+  const anchored = anchorIssues(readText(el), result.issues);
+  if (anchored.length) showHighlights(el, anchored);
+  else clearHighlights();
+}
 
 /** Field we track: textarea, input[type=text] or the root of a contenteditable. */
 function resolveEditable(target: EventTarget | undefined): Element | null {
@@ -34,7 +46,10 @@ function isExtensionAlive(): boolean {
 async function sendText(el: Element): Promise<void> {
   const text = readText(el);
   if (text.replace(/\s/g, '').length < MIN_NON_SPACE_CHARS) return;
-  if (lastSentText.get(el) === text) return;
+  if (lastSentText.get(el) === text) {
+    renderIssues(el);
+    return;
+  }
 
   if (!isExtensionAlive()) {
     detach();
@@ -50,8 +65,10 @@ async function sendText(el: Element): Promise<void> {
     const response = await chrome.runtime.sendMessage<CheckTextMessage, ResponseFor<CheckTextMessage>>(message);
     lastSentText.set(el, text);
     if (!response) return;
-    if (response.ok) console.info('[GrammarCoach] issues', response.result.issues);
-    else console.warn('[GrammarCoach] background error:', response.error);
+    if (response.ok) {
+      lastResult.set(el, response.result);
+      renderIssues(el);
+    } else console.warn('[GrammarCoach] background error:', response.error);
   } catch (err) {
     // Typically "Extension context invalidated" after the extension was reloaded.
     if (!isExtensionAlive()) detach();
@@ -63,6 +80,9 @@ function onInput(event: Event): void {
   // composedPath()[0] reaches fields inside open shadow roots of the host page.
   const el = resolveEditable(event.composedPath()[0]);
   if (!el) return;
+
+  // Text changed: hide highlights until debounce; lastResult is kept and re-anchored later.
+  clearHighlights();
 
   const pending = timers.get(el);
   if (pending !== undefined) clearTimeout(pending);
@@ -77,6 +97,7 @@ function onInput(event: Event): void {
 
 function detach(): void {
   document.removeEventListener('input', onInput, true);
+  clearHighlights();
 }
 
 document.addEventListener('input', onInput, true);
